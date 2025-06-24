@@ -1,4 +1,4 @@
-## 1.
+## 1. create a docker-compose file for PostgreSQL
 - create project docker_postgres
 - create file docker-compose.yml
 - add the following content to docker-compose.yml
