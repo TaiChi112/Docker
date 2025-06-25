@@ -31,18 +31,18 @@ docker exec -it my_mysql sh
 ```
 or
 ```sh
-docker exec -it my_mysql mysql -u root -p 
-``` 
+docker exec -it my_mysql mysql -u root -proot || docker exec -it my_mysql mysql -u taichi -pmysecretpassword
+```
 
 ```sql
 show databases;
 ```
 
 ```sql
-use my_app_db;
+use my_app_db; <!-- reference tracking in docker-compose.mysql.yml -->
 ```
 
-after this, you can create tables and insert data as needed.
+### after this, you can create tables and insert data as needed.
 
 ```sql
 CREATE TABLE users (
@@ -58,7 +58,8 @@ INSERT INTO users (username, email) VALUES
 SELECT * FROM users;
 ```
 
-if you want to exit the MySQL shell, you can type:
+### if you want to exit the MySQL shell, you can type:
+
 ```sql
 exit;
 ```
