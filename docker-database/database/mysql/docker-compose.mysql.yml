@@ -1,0 +1,17 @@
+services:
+  mysql_db: # Service name
+    image: mysql:lts-oraclelinux9 # Use the official MySQL 8.0 image
+    container_name: my_mysql # Name of the container
+    ports:
+      - "3306:3306" # Map host port 3306 to container port 3306
+    volumes:
+      - mysql_data:/var/lib/mysql # Persist MySQL data in a named volume
+    environment:
+      MYSQL_ROOT_PASSWORD: root # Root password (change to a strong password)
+      MYSQL_DATABASE: my_app_db      # Default database to create (change as needed)
+      MYSQL_USER: taichi                  # New user to create (change as needed)
+      MYSQL_PASSWORD: mysecretpassword          # Password for the new user (change as needed)
+    restart: unless-stopped # Always restart unless stopped manually
+
+volumes:
+  mysql_data: # Named volume for data persistence
