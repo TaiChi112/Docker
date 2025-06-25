@@ -1,64 +1,88 @@
-## 1. create a docker-compose file for PostgreSQL
-- create project docker_postgres
-- create file docker-compose.yml
-- add the following content to docker-compose.yml
-```yaml
-services:  
-  postgres_db: # you can change this name
-    image: postgres:16-alpine # you can change this image
-    container_name: my-postgres # you can change this name
-    environment: 
-      POSTGRES_PASSWORD: mysecretpassword # you can change this password
-    ports:
-      - "5433:5432" # you can change the port mapping
-    volumes:
-      - pgdata:/var/lib/postgresql/data 
-    restart: always # this will restart the container if it stops
+## PostgreSQL Docker Compose Setup
 
-volumes:
-  pgdata:
-``` 
+### 1. Create a Docker Compose File
 
-## 2. run postgres container by docker compose
+Create a folder for your project and a `docker-compose.postgres.yml` file:
 
-- run the following command to start the container
 ```sh
-docker compose up -d
+mkdir postgresql && cd postgresql && touch docker-compose.postgres.yml && code .
 ```
 
-- check if the container is running
+Add the following content to `docker-compose.postgres.yml`:
+
+```yaml
+services:
+  postgres_db: # Service name
+    image: postgres:16-alpine # Use the official PostgreSQL image
+    container_name: my_postgres # Name of the container
+    ports:
+      - "5433:5432" # Map host port 5433 to container port 5432
+    volumes:
+      - pgdata:/var/lib/postgresql/data # Persist PostgreSQL data in a named volume
+    environment:
+      POSTGRES_PASSWORD: mysecretpassword # Password for the default 'postgres' user
+      POSTGRES_USER: taichi              # (Optional) Custom user to create
+      POSTGRES_DB: my_app_db             # (Optional) Default database to create
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped # Always restart unless stopped manually
+
+volumes:
+  pgdata: # Named volume for data persistence
+```
+
+---
+
+### 2. Start the PostgreSQL Container
+
+```sh
+docker compose -f docker-compose.postgres.yml up -d
+```
+
+Check if the container is running:
+
 ```sh
 docker ps
 ```
 
-## 3. connect to the PostgreSQL database
-- open wsl terminal (Ubuntu/Debian)
-- searching IP address of WSL2 VM
-```sh
-ip addr show eth0 | grep inet
-```
-- you will see something like this 
-```inet
-192.168.1.100/24
-```
-- select the IP address (192.168.1.100) and use it to connect to the PostgreSQL database from your host machine.
-```sh
-psql -h 192.168.1.100 -p 5433 -U postgres
-```
-- or the next step
+---
 
-## 4. connect to PostgreSQL using a client UI tool
-- select client UI tool (e.g., pgAdmin, DBeaver) and connect using the following details:
-  - assuming you are using pgAdmin
-    - open pgAdmin
-    - click Server > Register > Server
-    - fill in the details:
-      - Name: My Postgres Server <!-- you can change this name -->
-      - Host: 192.168.1.100 <!-- should match the IP address from the previous step -->
-      - Port: 5433 <!-- should match the port mapping in docker-compose.yml -->
-      - Maintenance database: postgres
-      - Username: postgres
-      - Password: mysecretpassword <!-- should match the password in docker-compose.yml -->
-      - SSL: Disable
-    - click Save
-- you should now be able to see the PostgreSQL server in pgAdmin and manage your databases.
+### 3. Connect to PostgreSQL
+
+#### From Host or WSL
+
+```sh
+psql -h 127.0.0.1 -p 5433 -U postgres
+```
+Password: `mysecretpassword`
+
+#### From Inside the Container
+
+```sh
+docker exec -it my-postgres psql -U postgres
+```
+
+---
+
+### 4. Connect Using a Client UI Tool
+
+You can use tools like **pgAdmin** or **DBeaver**.  
+Connection details:
+
+- **Host:** 127.0.0.1
+- **Port:** 5433
+- **Database:** postgres
+- **Username:** postgres
+- **Password:** mysecretpassword
+- **SSL:** Disable
+
+---
+
+You can now manage your PostgreSQL server using the command line or a
+
+```sh
+psql -h 127.0.0.1 -p 5433 -U <username> <database>
+```
