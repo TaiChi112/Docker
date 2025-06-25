@@ -1,0 +1,21 @@
+services:
+  postgres_db: # Service name
+    image: postgres:16-alpine # Use the official PostgreSQL image
+    container_name: my_postgres # Name of the container
+    ports:
+      - "5433:5432" # Map host port 5433 to container port 5432
+    volumes:
+      - pgdata:/var/lib/postgresql/data # Persist PostgreSQL data in a named volume
+    environment:
+      POSTGRES_PASSWORD: mysecretpassword # Password for the default 'postgres' user
+      POSTGRES_USER: taichi              # (Optional) Custom user to create
+      POSTGRES_DB: my_app_db             # (Optional) Default database to create
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped # Always restart unless stopped manually
+
+volumes:
+  pgdata: # Named volume for data persistence
