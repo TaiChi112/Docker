@@ -1,0 +1,12 @@
+services:
+  redis_cache:
+    image: redis:8.2-m01-alpine3.22
+    container_name: my_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:
