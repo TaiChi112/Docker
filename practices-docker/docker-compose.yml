@@ -1,0 +1,76 @@
+services:
+  postgres_v0:
+    image: postgres:16-alpine
+    container_name: postgres_v0
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER_V0}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD_V0}
+      - POSTGRES_DB=${POSTGRES_DB_V0}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_v0_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - postgres_v0_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER_V0} -d ${POSTGRES_DB_V0}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+  
+  postgres_v1:
+    image: postgres:16-alpine
+    container_name: postgres_v1
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER_V1}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD_V1}
+      - POSTGRES_DB=${POSTGRES_DB_V1}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_v1_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - postgres_v1_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER_V1} -d ${POSTGRES_DB_V1}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    restart: unless-stopped
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=pgv0@example.com
+      - PGADMIN_DEFAULT_PASSWORD=pgpasswordv0
+    ports:
+      - "8080:80" 
+    depends_on:
+      - postgres_v0
+      - postgres_v1
+    networks:
+      - postgres_v0_network
+      - postgres_v1_network
+
+volumes:
+  postgres_v0_data:
+  postgres_v1_data:
+
+networks:
+  postgres_v0_network:
+    name: postgres_v0_network
+    driver: bridge
+  postgres_v1_network:
+    name: postgres_v1_network
+    driver: bridge
