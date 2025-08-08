@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  ubuntu:
+    image: ubuntu:latest
+    container_name: ubuntu-simple
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./shared:/shared
+    command: /bin/bash
+    restart: unless-stopped
+
+  alpine:
+    image: alpine:latest
+    container_name: alpine-simple
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./shared:/shared
+    command: /bin/sh
+    restart: unless-stopped
