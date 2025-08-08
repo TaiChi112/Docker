@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  ubuntu-custom:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.ubuntu-custom
+    image: ${DOCKER_USERNAME:-yourusername}/ubuntu-custom:${VERSION:-latest}
+    container_name: ubuntu-custom-build
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./shared:/shared
+      - ./ubuntu-dev:/workspace
+    working_dir: /workspace
+
+  alpine-custom:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.alpine-custom
+    image: ${DOCKER_USERNAME:-yourusername}/alpine-custom:${VERSION:-latest}
+    container_name: alpine-custom-build
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./shared:/shared
+      - ./alpine-dev:/workspace
+    working_dir: /workspace
+
+  # Multi-architecture builds (optional)
+  ubuntu-custom-multiarch:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.ubuntu-custom
+      platforms:
+        - linux/amd64
+        - linux/arm64
+    image: ${DOCKER_USERNAME:-yourusername}/ubuntu-custom:${VERSION:-latest}-multiarch
+    profiles:
+      - multiarch
+
+  alpine-custom-multiarch:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.alpine-custom
+      platforms:
+        - linux/amd64
+        - linux/arm64
+    image: ${DOCKER_USERNAME:-yourusername}/alpine-custom:${VERSION:-latest}-multiarch
+    profiles:
+      - multiarch
