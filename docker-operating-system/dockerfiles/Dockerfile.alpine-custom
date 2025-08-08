@@ -1,0 +1,45 @@
+FROM alpine:3.18
+
+# Add labels for metadata
+LABEL maintainer="yourusername"
+LABEL description="Custom Alpine container with development tools"
+LABEL version="1.0"
+
+# Install development tools and create user in a single layer
+RUN apk update && apk add --no-cache \
+    bash \
+    build-base \
+    curl \
+    git \
+    htop \
+    nano \
+    nodejs \
+    npm \
+    py3-pip \
+    python3 \
+    sudo \
+    tree \
+    unzip \
+    vim \
+    wget && \
+    adduser -D -s /bin/bash developer && \
+    echo "developer ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/developer
+
+# Set working directory
+WORKDIR /workspace
+
+# Copy custom configuration files (if any)
+# COPY ./config/ /etc/
+# COPY ./scripts/ /usr/local/bin/
+
+# Set permissions
+RUN chmod -R 755 /workspace
+
+# Switch to non-root user (optional)
+# USER developer
+
+# Expose ports (if needed)
+# EXPOSE 3000 8080
+
+# Set default command
+CMD ["/bin/sh"]
