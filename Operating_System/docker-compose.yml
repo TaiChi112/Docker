@@ -1,0 +1,16 @@
+services:
+  ubuntu-dev:
+    build:
+      context: .
+      dockerfile: dockerfile
+    container_name: ubuntu-dev
+    tty: true
+    stdin_open: true
+    volumes:
+      - ./workspace_local:/workspace_container 
+    networks:
+      - devnet
+
+networks:
+  devnet:
+    driver: bridge
