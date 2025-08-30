@@ -1,0 +1,7 @@
+## dockerfile
+- อยากอธิบาย dockerfile เริ่มจากปัญหาว่าเราจะใช้ dockerfile ทำอะไร กรณีของผม อยากใช้ OS Linux Ubuntu บน docker container
+- เริ่มจากกำหนด image ที่เราต้องการใช้ ซึ่ง docker ก็ image หลายประเภท เเต่ผมอยากใช้ Linux Ubuntu เลยกำหนด base image เป็น Ubuntu
+- หลังจากที่กำหนด base image เรียบร้อยเเล้ว เราจะทำกำหนด ENV DEBIAN_FRONTEND=noninteractive เพื่อไม่ให้มีการถามคำถามระหว่างการติดตั้งแพ็คเกจ เช่น apt-get install บางจะมีให้ prompt อะไรเข้าไป เพื่อลดปัญหาการ build ค้างหรือ error ตอน build image จะกำหนด ENV เป็น noninteractive
+- หลังจากกำหนด ENV เรียบร้อยเเล้ว เราจะทำการติดตั้งแพ็คเกจที่ต้องการ โดยใช้คำสั่ง RUN apt-get update && apt-get install -y ตามด้วยชื่อแพ็คเกจที่ต้องการติดตั้ง จุดนี้เราจะติดตั้งเพิ่มเข้าได้ ไม่ว่าจะเป็น tools อะไรก็ตามที่อยากเข้าไปใช้ใน docker container เช่น database mysql , psql , mongodb , redis หรืออื่นเน้นย้ำ เท่าที่เข้าใจคือเป็น CLI เป็นหลัก
+- หลังจากติดตั้งแพ็คเกจเสร็จเรียบร้อย เราจะทำการกำหนด WORKDIR เพื่อระบุ directory ที่เราต้องการทำงานใน docker container โดยใช้คำสั่ง WORKDIR /current_workspace หมายความว่าเราจะทำงานใน directory นี้ภายใน container เหมือนเป็น  directory จุดเริ่มต้นใน docker จริงๆ เเทบไม่ได้ช่วยอะไร
+- สุดท้ายเราจะกำหนด CMD ["/bin/bash"] เพื่อระบุคำสั่งที่ต้องการให้รันเมื่อ container เริ่มทำงาน โดยในที่นี้เราต้องการให้เปิด shell bash ขึ้นมา
