@@ -1,0 +1,21 @@
+- กำหนดชื่อ service database server
+    - กำหนด image database
+    - กำหนด container_name
+    - กำหนดให้ restart always
+    - กำหนด Env ของ database
+        - POSTGRES_USER: ชื่อผู้ใช้ฐานข้อมูล
+        - POSTGRES_PASSWORD: รหัสผ่านฐานข้อมูล
+        - POSTGRES_DB: ชื่อฐานข้อมูล
+    - กำหนด ports ของ database
+    - กำหนด volumes ที่เก็บ data ระหว่าง container กับ local
+- กำหนดชื่อ service database client
+    - กำหนด image database client
+    - กำหนด container_name
+    - กำหนดให้ restart always
+    - กำหนด Env ของ database client
+        - PGADMIN_DEFAULT_EMAIL: อีเมลสำหรับเข้าสู่ระบบ pgAdmin
+        - PGADMIN_DEFAULT_PASSWORD: รหัสผ่านสำหรับเข้าสู่ระบบ pgAdmin
+    - กำหนด ports ของ database client
+    - กำหนด depends_on ให้ database client รอ database server พร้อมก่อน
+
+- กำหนด volumes ที่เก็บ data ระหว่าง container กับ local
