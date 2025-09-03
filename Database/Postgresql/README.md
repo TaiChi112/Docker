@@ -7,7 +7,7 @@
         - POSTGRES_PASSWORD: รหัสผ่านฐานข้อมูล
         - POSTGRES_DB: ชื่อฐานข้อมูล
     - กำหนด ports ของ database
-    - กำหนด volumes ที่เก็บ data ระหว่าง container กับ local
+    - กำหนด volumes ตำเเหน่งที่จัดเก็บ data ระหว่าง container กับ local
 - กำหนดชื่อ service database client
     - กำหนด image database client
     - กำหนด container_name
