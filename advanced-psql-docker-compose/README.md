@@ -17,12 +17,51 @@
 graph TB
     subgraph "Docker Host"
         subgraph "app-network (Bridge)"
-            postgres_db[PostgreSQL Container]
-            web_app[Web Application Container]
+            PG[PostgreSQL Container<br/>Port: 5432]
+            AD[Adminer Container<br/>Port: 8080]
+            PGA[pgAdmin Container<br/>Port: 5050]
+            BK[Backup Container<br/>Cron-based]
+        end
+        
+        subgraph "Volumes"
+            PGD[postgres_data<br/>Persistent Storage]
+            PGAD[pgadmin_data<br/>UI Settings]
+            BP[./backups<br/>Host Mount]
+        end
+        
+        subgraph "Configuration"
+            ENV[.env<br/>Environment Variables]
+            CONF[./postgres/conf/<br/>Custom Config Files]
+            INIT[./postgres/init/<br/>Initialization Scripts]
         end
     end
-    web_app --> postgres_db
+    
+    subgraph "External Access"
+        USER[👤 User]
+        APP[🔗 Application]
+    end
+    
+    USER --> AD
+    USER --> PGA
+    APP --> PG
+    PG --> PGD
+    PGA --> PGAD
+    BK --> BP
+    PG --> CONF
+    PG --> INIT
+    PG --> ENV
+    
+    %% classDef container fill:#e1f5fe
+    %% classDef volume fill:#f3e5f5
+    %% classDef config fill:#fff3e0
+    %% classDef external fill:#e8f5e8
+    
+    class PG,AD,PGA,BK container
+    class PGD,PGAD,BP volume
+    class ENV,CONF,INIT config
+    class USER,APP external
 ```
+
 ## 🔧 Troubleshooting Guide
 
 ```mermaid
@@ -79,50 +118,7 @@ flowchart TD
     class START,FIX_CONFIG,FIX_PERMS,CHANGE_PORT,NETWORK,AUTH,TUNE,CHECK_SPACE,RESTART,CHECK_LOGS action
 ```
 
-Let me know what specific part you'd like to dive deeper into!PostgreSQL Container<br/>Port: 5432]
-            AD[Adminer Container<br/>Port: 8080]
-            PGA[pgAdmin Container<br/>Port: 5050]
-            BK[Backup Container<br/>Cron-based]
-        end
-        
-        subgraph "Volumes"
-            PGD[postgres_data<br/>Persistent Storage]
-            PGAD[pgadmin_data<br/>UI Settings]
-            BP[./backups<br/>Host Mount]
-        end
-        
-        subgraph "Configuration"
-            ENV[.env<br/>Environment Variables]
-            CONF[./postgres/conf/<br/>Custom Config Files]
-            INIT[./postgres/init/<br/>Initialization Scripts]
-        end
-    end
-    
-    subgraph "External Access"
-        USER[👤 User]
-        APP[🔗 Application]
-    end
-    
-    USER --> AD
-    USER --> PGA
-    APP --> PG
-    PG --> PGD
-    PGA --> PGAD
-    BK --> BP
-    PG --> CONF
-    PG --> INIT
-    PG --> ENV
-    
-    classDef container fill:#e1f5fe
-    classDef volume fill:#f3e5f5
-    classDef config fill:#fff3e0
-    classDef external fill:#e8f5e8
-    
-    class PG,AD,PGA,BK container
-    class PGD,PGAD,BP volume
-    class ENV,CONF,INIT config
-    class USER,APP external
-```
+
 
 **✅ 1. Directory Structure**
 ```sh
