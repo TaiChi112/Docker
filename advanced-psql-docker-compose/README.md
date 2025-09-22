@@ -11,6 +11,119 @@
 - Replication-ready structure (optional)
 - Environment variable best practices
 
+## 🏗️ System Architecture Overview
+
+```mermaid
+graph TB
+    subgraph "Docker Host"
+        subgraph "app-network (Bridge)"
+            postgres_db[PostgreSQL Container]
+            web_app[Web Application Container]
+        end
+    end
+    web_app --> postgres_db
+```
+## 🔧 Troubleshooting Guide
+
+```mermaid
+flowchart TD
+    ISSUE[🚨 PostgreSQL Issue]
+    
+    ISSUE --> CHECK1{Container Running?}
+    CHECK1 -->|No| START[docker compose up -d]
+    CHECK1 -->|Yes| CHECK2{Health Check Passing?}
+    
+    CHECK2 -->|No| CHECK3{Config Files Valid?}
+    CHECK3 -->|No| FIX_CONFIG[Fix postgresql.conf<br/>or pg_hba.conf]
+    CHECK3 -->|Yes| CHECK4{Volume Permissions?}
+    
+    CHECK4 -->|Issues| FIX_PERMS[Fix volume permissions<br/>chown -R 999:999]
+    CHECK4 -->|OK| CHECK_LOGS[Check container logs<br/>docker compose logs postgres]
+    
+    CHECK2 -->|Yes| CHECK5{Connection Issues?}
+    CHECK5 -->|Yes| CHECK6{Port Available?}
+    CHECK6 -->|No| CHANGE_PORT[Change POSTGRES_PORT<br/>in .env file]
+    CHECK6 -->|Yes| CHECK7{Network Issues?}
+    
+    CHECK7 -->|Yes| NETWORK[Check Docker network<br/>docker network ls]
+    CHECK7 -->|No| CHECK8{Authentication Issues?}
+    
+    CHECK8 -->|Yes| AUTH[Check credentials in .env<br/>Verify pg_hba.conf rules]
+    CHECK8 -->|No| PERF{Performance Issues?}
+    
+    PERF -->|Yes| TUNE[Adjust postgresql.conf<br/>- shared_buffers<br/>- work_mem<br/>- max_connections]
+    PERF -->|No| BACKUP_ISSUE{Backup Problems?}
+    
+    BACKUP_ISSUE -->|Yes| CHECK_SPACE[Check disk space<br/>./backups directory]
+    BACKUP_ISSUE -->|No| SOLVED[✅ Issue Resolved]
+    
+    START --> CHECK1
+    FIX_CONFIG --> RESTART[docker compose restart postgres]
+    FIX_PERMS --> RESTART
+    CHANGE_PORT --> RESTART
+    NETWORK --> RESTART
+    AUTH --> RESTART
+    TUNE --> RESTART
+    CHECK_SPACE --> SOLVED
+    RESTART --> CHECK1
+    CHECK_LOGS --> SOLVED
+    
+    %% classDef problem fill:#ffcdd2
+    %% classDef check fill:#fff3e0
+    %% classDef solution fill:#c8e6c9
+    %% classDef action fill:#e1f5fe
+    
+    class ISSUE problem
+    class CHECK1,CHECK2,CHECK3,CHECK4,CHECK5,CHECK6,CHECK7,CHECK8,PERF,BACKUP_ISSUE check
+    class SOLVED solution
+    class START,FIX_CONFIG,FIX_PERMS,CHANGE_PORT,NETWORK,AUTH,TUNE,CHECK_SPACE,RESTART,CHECK_LOGS action
+```
+
+Let me know what specific part you'd like to dive deeper into!PostgreSQL Container<br/>Port: 5432]
+            AD[Adminer Container<br/>Port: 8080]
+            PGA[pgAdmin Container<br/>Port: 5050]
+            BK[Backup Container<br/>Cron-based]
+        end
+        
+        subgraph "Volumes"
+            PGD[postgres_data<br/>Persistent Storage]
+            PGAD[pgadmin_data<br/>UI Settings]
+            BP[./backups<br/>Host Mount]
+        end
+        
+        subgraph "Configuration"
+            ENV[.env<br/>Environment Variables]
+            CONF[./postgres/conf/<br/>Custom Config Files]
+            INIT[./postgres/init/<br/>Initialization Scripts]
+        end
+    end
+    
+    subgraph "External Access"
+        USER[👤 User]
+        APP[🔗 Application]
+    end
+    
+    USER --> AD
+    USER --> PGA
+    APP --> PG
+    PG --> PGD
+    PGA --> PGAD
+    BK --> BP
+    PG --> CONF
+    PG --> INIT
+    PG --> ENV
+    
+    classDef container fill:#e1f5fe
+    classDef volume fill:#f3e5f5
+    classDef config fill:#fff3e0
+    classDef external fill:#e8f5e8
+    
+    class PG,AD,PGA,BK container
+    class PGD,PGAD,BP volume
+    class ENV,CONF,INIT config
+    class USER,APP external
+```
+
 **✅ 1. Directory Structure**
 ```sh
 postgres-compose/
@@ -147,6 +260,43 @@ networks:
     name: postgres_app_network
 ```
 
+## 🚀 Deployment Sequence
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Docker
+    participant Network as app-network
+    participant PG as PostgreSQL
+    participant Health as Health Check
+    participant Adminer
+    participant pgAdmin
+    participant Backup
+
+    User->>Docker: docker compose up -d
+    Docker->>Network: Create app-network
+    Docker->>PG: Start PostgreSQL container
+    
+    Note over PG: Load custom configs<br/>postgresql.conf & pg_hba.conf
+    
+    PG->>PG: Initialize database with<br/>01-extensions.sql
+    PG->>Health: Start health check probe
+    
+    loop Every 10s for 30s
+        Health->>PG: pg_isready -U user -d db
+        PG-->>Health: Connection status
+    end
+    
+    Health->>Docker: ✅ PostgreSQL healthy
+    Docker->>Adminer: Start Adminer (depends on PG)
+    Docker->>pgAdmin: Start pgAdmin (depends on PG)
+    Docker->>Backup: Start backup container (depends on PG)
+    
+    Note over Backup: Schedule daily backups<br/>via pg_dump
+    
+    Docker-->>User: ✅ All services ready
+```
+
 **✅ 4. Custom postgresql.conf**
 - Place in ./postgres/conf/postgresql.conf 
 ```conf
@@ -206,6 +356,50 @@ host    all             all             192.168.0.0/16          md5
 # host    replication     replicator      172.16.0.0/12         md5
 ```
 
+## 💾 Volume Mapping & Data Flow
+
+```mermaid
+graph LR
+    subgraph "Host Machine"
+        HC[Host Config Files]
+        HB[Host Backup Dir]
+        DV[Docker Volume<br/>postgres_data]
+        
+        subgraph "Host Directories"
+            CONF[./postgres/conf/<br/>├── postgresql.conf<br/>└── pg_hba.conf]
+            INIT[./postgres/init/<br/>└── 01-extensions.sql]
+            BACK[./backups/<br/>├── backup_20241201.sql<br/>└── backup_20241202.sql]
+        end
+    end
+    
+    subgraph "PostgreSQL Container"
+        CFG[/etc/postgresql/<br/>postgresql.conf]
+        HBA[/var/lib/postgresql/data/<br/>pg_hba.conf]
+        DATA[/var/lib/postgresql/data/<br/>📊 Database Files]
+        INITD[/docker-entrypoint-initdb.d/<br/>🔧 Init Scripts]
+        BACKD[/backups/<br/>🗄️ Backup Storage]
+    end
+    
+    CONF --> CFG
+    CONF --> HBA
+    INIT --> INITD
+    BACK --> BACKD
+    DV --> DATA
+    
+    CFG -.-> DATA
+    HBA -.-> DATA
+    INITD -.-> DATA
+    BACKD -.-> DATA
+    
+    classDef host fill:#e3f2fd
+    classDef container fill:#fff3e0
+    classDef persistent fill:#f1f8e9
+    
+    class HC,HB,CONF,INIT,BACK host
+    class CFG,HBA,INITD,BACKD container
+    class DV,DATA persistent
+```
+
 **✅ 6. Initialize Extensions**
 - — ./postgres/init/01-extensions.sql
 ```sql
@@ -229,6 +423,34 @@ GRANT ALL ON SCHEMA app TO ${POSTGRES_USER};
 cd postgres-compose
 docker compose up -d
 docker compose logs -f postgres
+```
+
+## 🏥 Health Check Flow
+
+```mermaid
+flowchart TD
+    START[Container Started] --> WAIT[Wait 30s<br/>start_period]
+    WAIT --> CHECK{Health Check:<br/>pg_isready -U admin -d myapp}
+    CHECK -->|✅ Success| HEALTHY[Container Healthy]
+    CHECK -->|❌ Failure| RETRY{Retry < 5?}
+    RETRY -->|Yes| WAIT10[Wait 10s<br/>interval]
+    WAIT10 --> CHECK
+    RETRY -->|No| UNHEALTHY[Container Unhealthy<br/>🔴 Failed]
+    HEALTHY --> MONITOR[Monitor every 10s]
+    MONITOR --> CHECK2{Health Check}
+    CHECK2 -->|✅ Success| MONITOR
+    CHECK2 -->|❌ Failure| RETRY2{Retry < 5?}
+    RETRY2 -->|Yes| WAIT10_2[Wait 10s]
+    WAIT10_2 --> CHECK2
+    RETRY2 -->|No| UNHEALTHY
+    
+    classDef success fill:#c8e6c9
+    classDef failure fill:#ffcdd2
+    classDef process fill:#e1f5fe
+    
+    class HEALTHY,MONITOR success
+    class UNHEALTHY failure
+    class START,WAIT,CHECK,RETRY,WAIT10,CHECK2,RETRY2,WAIT10_2 process
 ```
 
 - Check health:
@@ -268,6 +490,41 @@ depends_on:
 ```
 
 **💾 Backup & Restore**
+
+## 🔄 Backup Process Flow
+
+```mermaid
+flowchart TD
+    subgraph "Backup Container (Cron)"
+        CRON[Cron Schedule<br/>Every 24h / 86400s]
+        DUMP[pg_dump -h postgres<br/>-U admin myapp]
+        SAVE[Save to /backups/<br/>backup_YYYYMMDD_HHMMSS.sql]
+    end
+    
+    subgraph "PostgreSQL Container"
+        DB[(Database<br/>myapp)]
+    end
+    
+    subgraph "Host Machine"
+        BACKUP_DIR[./backups/<br/>📁 Host Directory]
+        FILES[backup_20241201_120000.sql<br/>backup_20241202_120000.sql<br/>backup_20241203_120000.sql]
+    end
+    
+    CRON --> DUMP
+    DUMP --> DB
+    DB --> SAVE
+    SAVE --> BACKUP_DIR
+    BACKUP_DIR --> FILES
+    
+    classDef cron fill:#fff3e0
+    classDef db fill:#e8f5e8
+    classDef storage fill:#f3e5f5
+    
+    class CRON,DUMP,SAVE cron
+    class DB db
+    class BACKUP_DIR,FILES storage
+```
+
 - Manual Backup:
 ```sh
 docker-compose exec postgres pg_dump -U admin myapp > backup.sql
