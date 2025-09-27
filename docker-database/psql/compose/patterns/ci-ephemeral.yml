@@ -1,0 +1,40 @@
+# CI Ephemeral PostgreSQL - Fast startup with tmpfs
+# ไม่มี persistence เหมาะสำหรับ testing และ CI/CD
+
+version: '3.8'
+
+services:
+  postgres-ci:
+    image: postgres:16
+    container_name: postgres-ci-test
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+      POSTGRES_DB: testdb
+      # เพิ่มความเร็วด้วย fsync off (ไม่ปลอดภัยสำหรับ production)
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    ports:
+      - "5432:5432"
+    # ใช้ tmpfs เพื่อความเร็วสูง (อยู่ใน RAM)
+    tmpfs:
+      - /var/lib/postgresql/data:rw,noexec,nosuid,size=1g
+    # ปรับแต่ง PostgreSQL สำหรับ testing
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c max_connections=200
+      -c random_page_cost=1.1
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c fsync=off
+      -c synchronous_commit=off
+      -c full_page_writes=off
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testuser -d testdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    restart: "no"  # ไม่ restart ใน CI environment
