@@ -1,0 +1,84 @@
+{
+  "task": "Generate Docker Compose examples for PostgreSQL at multiple levels and create ready-to-run files.",
+  "language": "th",
+  "outputs": [
+    {
+      "path": "compose/minimal/docker-compose.yml",
+      "purpose": "Minimal runnable PostgreSQL with persistence.",
+      "spec": "Use postgres:16, set POSTGRES_USER/DB/PASSWORD, expose 5432, named volume, healthcheck."
+    },
+    {
+      "path": "compose/dev/docker-compose.dev.yml",
+      "purpose": "Standard dev setup with pgAdmin and init scripts.",
+      "spec": "Use env_file .env, map 5432 and pgAdmin 5050, mount ./initdb to /docker-entrypoint-initdb.d, healthcheck, restart unless-stopped."
+    },
+    {
+      "path": "compose/dev/.env",
+      "purpose": "Dev environment variables.",
+      "spec": "Include PG_USER, PG_PASSWORD, PG_DB, PG_PORT, PGADMIN_DEFAULT_EMAIL, PGADMIN_DEFAULT_PASSWORD, PGADMIN_PORT."
+    },
+    {
+      "path": "compose/prod/docker-compose.prod.yml",
+      "purpose": "Production-like setup with secrets and exporter.",
+      "spec": "No host port, use Docker secrets for password, internal network only, prometheus postgres-exporter, healthcheck, resource limits."
+    },
+    {
+      "path": "compose/ha/docker-compose.ha.yml",
+      "purpose": "Advanced DBA: HA with Bitnami PostgreSQL Repmgr, 1 primary + 2 replicas, HAProxy, and PgBouncer.",
+      "spec": "pg-0/pg-1/pg-2 with repmgr env, named volumes, db network, haproxy config mount, pgbouncer in front of haproxy."
+    },
+    {
+      "path": "compose/ha/haproxy/haproxy.cfg",
+      "purpose": "HAProxy routing config for Postgres cluster.",
+      "spec": "Primary for writes, replicas for reads. Provide sample backend servers pg-0, pg-1, pg-2."
+    },
+    {
+      "path": "compose/patterns/postgis.yml",
+      "purpose": "PostGIS example.",
+      "spec": "postgis/postgis:16-3.5, POSTGRES_PASSWORD, POSTGRES_DB, 5432:5432, persistent volume."
+    },
+    {
+      "path": "compose/patterns/pgvector.yml",
+      "purpose": "pgvector example for AI embeddings.",
+      "spec": "pgvector/pgvector:pg16, enable CREATE EXTENSION vector via init script or manual psql."
+    },
+    {
+      "path": "compose/patterns/ci-ephemeral.yml",
+      "purpose": "Fast CI with tmpfs (no persistence).",
+      "spec": "postgres:16, tmpfs on PGDATA, basic env."
+    },
+    {
+      "path": "compose/patterns/backup-sidecar.yml",
+      "purpose": "Simple backup sidecar with pg_dump hourly.",
+      "spec": "alpine sidecar installs psql client, dumps to mounted volume with timestamp."
+    },
+    {
+      "path": "compose/patterns/app-wait.yml",
+      "purpose": "Service wait and seed example.",
+      "spec": "app waits for pg_isready then runs seed and starts app."
+    },
+    {
+      "path": "README.md",
+      "purpose": "How to run each compose, tips, and testing checklist.",
+      "spec": "Explain commands, networks, volumes, security (secrets), healthchecks, backup/restore, and HA notes."
+    }
+  ],
+  "acceptance_criteria": [
+    "All YAML validates with docker compose v2.",
+    "Dev stack boots with 'docker compose -f compose/dev/docker-compose.dev.yml up -d' and pgAdmin is reachable.",
+    "Prod stack does not expose DB to host and uses Docker secrets.",
+    "HA stack launches and HAProxy exposes port 5432; PgBouncer listens on 6432.",
+    "README includes Basic → Applied → Testing guidance and common pitfalls."
+  ],
+  "hints_for_agent": [
+    "Prefer postgres:16 images. Use named volumes.",
+    "For secrets, create ./secrets/pg_password.txt and reference with secrets.",
+    "Provide healthchecks using pg_isready.",
+    "Comment YAML generously for learning.",
+    "Make examples independent so users can run them separately."
+  ],
+  "post_generation_tasks": [
+    "Run 'docker compose config' on each YAML to ensure validity.",
+    "Generate sample initdb SQL file for dev to demonstrate extensions (optional)."
+  ]
+}
