@@ -1,0 +1,105 @@
+# Application Wait Pattern - Service waits for DB ready then seeds data
+# แสดงวิธีการ wait for database และ seed initial data
+
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: postgres-app
+    environment:
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppass
+      POSTGRES_DB: appdb
+    volumes:
+      - postgres_app_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Database seeder - รัน migration และ seed data
+  db-seeder:
+    image: postgres:16
+    container_name: db-seeder
+    environment:
+      PGUSER: appuser
+      PGPASSWORD: apppass
+      PGHOST: postgres
+      PGDATABASE: appdb
+    volumes:
+      - ./seed-data:/seed:ro
+    networks:
+      - app-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: |
+      bash -c '
+        echo "Waiting for PostgreSQL to be ready..."
+        until pg_isready -h postgres -U appuser -d appdb; do
+          echo "PostgreSQL is unavailable - sleeping"
+          sleep 2
+        done
+        
+        echo "PostgreSQL is ready! Running migrations and seeding data..."
+        
+        # Run migration files
+        for file in /seed/migrations/*.sql; do
+          if [ -f "$$file" ]; then
+            echo "Running migration: $$file"
+            psql -h postgres -U appuser -d appdb -f "$$file"
+          fi
+        done
+        
+        # Run seed files
+        for file in /seed/seeds/*.sql; do
+          if [ -f "$$file" ]; then
+            echo "Running seed: $$file"
+            psql -h postgres -U appuser -d appdb -f "$$file"
+          fi
+        done
+        
+        echo "Database seeding completed!"
+      '
+    restart: "no"
+
+  # Example application
+  app:
+    image: node:18-alpine
+    container_name: sample-app
+    environment:
+      DATABASE_URL: postgresql://appuser:apppass@postgres:5432/appdb
+      NODE_ENV: development
+    volumes:
+      - ./app:/usr/src/app
+    working_dir: /usr/src/app
+    ports:
+      - "3000:3000"
+    networks:
+      - app-network
+    depends_on:
+      db-seeder:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    command: |
+      sh -c '
+        echo "Installing dependencies..."
+        npm install
+        echo "Starting application..."
+        npm start
+      '
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_app_data:
+    driver: local
