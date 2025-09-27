@@ -1,0 +1,70 @@
+# Production PostgreSQL Setup
+# ใช้ Docker secrets และไม่เปิด port ให้ host, มี resource limits
+
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: postgres-prod
+    environment:
+      POSTGRES_USER: produser
+      POSTGRES_DB: proddb
+      # ใช้ Docker secret แทน plain text password
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_password
+    # ไม่เปิด port ให้ host (internal network only)
+    expose:
+      - "5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    networks:
+      - internal-network
+    secrets:
+      - pg_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U produser -d proddb"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # Resource limits สำหรับ production
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+    restart: unless-stopped
+
+  # Prometheus PostgreSQL Exporter สำหรับ monitoring
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://produser@postgres:5432/proddb?sslmode=disable&password_file=/run/secrets/pg_password"
+    ports:
+      - "9187:9187"  # เปิดเฉพาะ metrics port
+    networks:
+      - internal-network
+    secrets:
+      - pg_password
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  internal-network:
+    driver: bridge
+    internal: true  # Network ภายในเท่านั้น ไม่เชื่อมต่อภายนอก
+
+# Docker secrets configuration
+secrets:
+  pg_password:
+    file: ../../secrets/pg_password.txt
+
+volumes:
+  postgres_prod_data:
+    driver: local
