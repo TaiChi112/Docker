@@ -1,0 +1,71 @@
+# PostgreSQL with Backup Sidecar
+# Automated backup using pg_dump ทุกชั่วโมง
+
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: postgres-main
+    environment:
+      POSTGRES_USER: backupuser
+      POSTGRES_PASSWORD: backuppass
+      POSTGRES_DB: backupdb
+    volumes:
+      - postgres_main_data:/var/lib/postgresql/data
+    networks:
+      - backup-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U backupuser -d backupdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Backup sidecar container
+  backup-sidecar:
+    image: alpine:3.18
+    container_name: postgres-backup
+    environment:
+      PGUSER: backupuser
+      PGPASSWORD: backuppass
+      PGHOST: postgres
+      PGDATABASE: backupdb
+    volumes:
+      - backup_storage:/backups
+      - ./backup-scripts:/scripts:ro
+    networks:
+      - backup-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # ติดตั้ง PostgreSQL client และรัน backup script
+    command: |
+      sh -c '
+        echo "Installing PostgreSQL client..."
+        apk add --no-cache postgresql16-client
+        echo "Starting backup scheduler..."
+        while true; do
+          echo "Creating backup at $$(date)"
+          TIMESTAMP=$$(date +%Y%m%d_%H%M%S)
+          pg_dump -h postgres -U backupuser backupdb > /backups/backup_$${TIMESTAMP}.sql
+          echo "Backup completed: backup_$${TIMESTAMP}.sql"
+          
+          # Keep only last 24 backups (24 hours)
+          ls -t /backups/backup_*.sql | tail -n +25 | xargs -r rm
+          
+          # Wait 1 hour (3600 seconds)
+          sleep 3600
+        done
+      '
+    restart: unless-stopped
+
+networks:
+  backup-network:
+    driver: bridge
+
+volumes:
+  postgres_main_data:
+    driver: local
+  backup_storage:
+    driver: local
