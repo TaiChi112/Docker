@@ -1,0 +1,29 @@
+# PostGIS Example - PostgreSQL with Geographic Extensions
+# เหมาะสำหรับ GIS applications และ spatial data
+
+version: '3.8'
+
+services:
+  postgis:
+    image: postgis/postgis:16-3.5
+    container_name: postgis-db
+    environment:
+      POSTGRES_PASSWORD: gispassword
+      POSTGRES_DB: gisdb
+      POSTGRES_USER: gisuser
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+      # เพิ่ม init script เพื่อ enable extensions
+      - ./postgis-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gisuser -d gisdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgis_data:
+    driver: local
