@@ -1,0 +1,180 @@
+name: docker-postgresql
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  postgres:
+    image: postgres:18
+    pull_policy: always
+    container_name: postgres18
+    hostname: postgres
+    restart: unless-stopped
+    stop_grace_period: 1m
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_DB: ${POSTGRES_DB:-appdb}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      PGDATA: /var/lib/postgresql/data/pgdata
+
+      # Optional: tighten initdb defaults (applies on first init only)
+      # POSTGRES_INITDB_ARGS: "--data-checksums --encoding=UTF8 --locale=C"
+
+    ports:
+      # Bind to localhost by default (safe for dev on WSL/Windows host)
+      - "${POSTGRES_BIND_ADDRESS:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
+
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - pg_backups:/backups
+      - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
+
+    configs:
+      - source: postgres_conf
+        target: /etc/postgresql/postgresql.conf
+      - source: postgres_hba
+        target: /etc/postgresql/pg_hba.conf
+
+    secrets:
+      - postgres_password
+
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+      - -c
+      - hba_file=/etc/postgresql/pg_hba.conf
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -h 127.0.0.1 -p 5432 -U $${POSTGRES_USER} -d $${POSTGRES_DB}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+    shm_size: "1gb"
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
+
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+    security_opt:
+      - no-new-privileges:true
+    # Postgres entrypoint needs CHOWN; avoid dropping all caps
+    # to allow ownership adjustments on the data directory.
+    # If you want stricter caps, consider dropping specific ones
+    # like NET_RAW instead of ALL.
+    # cap_drop:
+    #   - NET_RAW
+
+    logging: *default-logging
+    networks:
+      - db_net
+
+    labels:
+      com.example.stack: "postgresql"
+
+    # Compose "deploy" is ignored by classic Docker Engine, but is useful documentation
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2g
+        reservations:
+          cpus: "0.50"
+          memory: 512m
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    pull_policy: always
+    container_name: pgadmin
+    hostname: pgadmin
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    ports:
+      - "${PGADMIN_BIND_ADDRESS:-127.0.0.1}:${PGADMIN_PORT:-5050}:80"
+
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD_FILE: /run/secrets/pgadmin_password
+      PGADMIN_LISTEN_PORT: "80"
+
+      # pgAdmin hardening + common settings
+      PGADMIN_CONFIG_SERVER_MODE: "True"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "True"
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "True"
+      PGADMIN_CONFIG_WTF_CSRF_ENABLED: "True"
+      PGADMIN_CONFIG_SESSION_EXPIRATION_TIME: "60"  # minutes
+      PGADMIN_CONFIG_MAX_LOGIN_ATTEMPTS: "10"
+      PGADMIN_CONFIG_LOCKOUT_DURATION: "300"  # seconds
+      PGADMIN_CONFIG_LOGIN_BANNER: "'Authorized use only.'"
+      PGADMIN_CONFIG_CONSOLE_LOG_LEVEL: "20"  # INFO
+
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+
+    secrets:
+      - pgadmin_password
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1/misc/ping', timeout=3).read()\"",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+    # PgAdmin’s entrypoint uses sudo; avoid NNP/cap drops here.
+
+    logging: *default-logging
+    networks:
+      - db_net
+
+    labels:
+      com.example.stack: "pgadmin"
+
+networks:
+  db_net:
+    driver: bridge
+    name: ${COMPOSE_PROJECT_NAME:-docker-postgresql}_net
+
+volumes:
+  pg_data:
+    name: ${COMPOSE_PROJECT_NAME:-docker-postgresql}_pg_data
+  pgadmin_data:
+    name: ${COMPOSE_PROJECT_NAME:-docker-postgresql}_pgadmin_data
+  pg_backups:
+    name: ${COMPOSE_PROJECT_NAME:-docker-postgresql}_pg_backups
+
+configs:
+  postgres_conf:
+    file: ./postgres/postgresql.conf
+  postgres_hba:
+    file: ./postgres/pg_hba.conf
+
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+  pgadmin_password:
+    file: ./secrets/pgadmin_password.txt
